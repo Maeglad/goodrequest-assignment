@@ -49,11 +49,18 @@ class PokemonViewModel(
             }
             result.fold(
                 onSuccess = { pokemons ->
-                            _uiState.value =
-                                MainState(
-                                    pokemons = pokemons,
-                                    isError = false
-                                )
+                    pokemons.map {
+                        withContext(Dispatchers.IO) {
+                            loadDetails(it)
+                        }
+                    }.also { pokemonsAndDetails ->
+                        _uiState.value =
+                            MainState(
+                                pokemons = pokemonsAndDetails,
+                                isError = false
+                            )
+                    }
+
                 },
                 onFailure = {
                     when (_uiState.value) {
@@ -81,6 +88,12 @@ class PokemonViewModel(
                 })
         }
     }
+
+    private suspend fun loadDetails(pokemon: Pokemon): Pokemon =
+        pokemon.copy(
+            detail = api.getPokemonDetail(pokemon).getOrNull()
+        )
+
 }
 
 

@@ -34,7 +34,10 @@ class Item(view: View) : RecyclerView.ViewHolder(view) {
         ui.image.load(pokemon.detail?.image) {
             crossfade(true)
             placeholder(R.drawable.ic_launcher_foreground)
+            fallback(R.drawable.ic_launcher_foreground)
         }
         ui.name.text = pokemon.name
+        ui.move.text = pokemon.detail?.move?.replace("-", " ")
+        ui.weight.text = pokemon.detail?.weight?.let { "$it kg" }
     }
 }
