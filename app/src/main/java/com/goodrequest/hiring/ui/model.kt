@@ -21,6 +21,7 @@ class PokemonViewModel(
         private const val UI_STATE_KEY = "Ui.UiState"
         private const val NEXT_PAGE_KEY = "Ui.NextPage"
         private const val IS_PAGE_ERROR_KEY = "Ui.IsPageError"
+        private const val IS_REFRESHING_KEY = "Ui.IsRefreshing"
     }
 
     private val _uiState = state.getLiveData<UiState>(
@@ -36,6 +37,10 @@ class PokemonViewModel(
         false
     )
     val isPageError: LiveData<Boolean> = _isPageError
+
+    private val _isRefreshing get() = state.getLiveData(IS_REFRESHING_KEY, false)
+    val isRefreshing: LiveData<Boolean> = _isRefreshing
+
     private val nextPage get() = state.get<Int>(NEXT_PAGE_KEY) ?: 1
 
     private var isLoadingPage = false
@@ -59,9 +64,11 @@ class PokemonViewModel(
     }
 
     fun reloadData() {
+        _isRefreshing.value = true
         viewModelScope.launch {
             load(true)
             _isPageError.value = false
+            _isRefreshing.value = false
         }
     }
 

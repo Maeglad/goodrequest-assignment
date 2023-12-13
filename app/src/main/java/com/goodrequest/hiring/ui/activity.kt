@@ -48,6 +48,10 @@ class PokemonActivity : ComponentActivity() {
                 }
             })
 
+            vm.isRefreshing.observe(this@PokemonActivity) { isRefreshing ->
+                refresh.isRefreshing = isRefreshing
+            }
+
             vm.uiState.observe(this@PokemonActivity) { uiState ->
                 when (uiState) {
                     is InitialState -> {
@@ -63,7 +67,7 @@ class PokemonActivity : ComponentActivity() {
                     }
 
                     is MainState -> {
-                        if (uiState.isError && refresh.isRefreshing) {
+                        if (uiState.isError && vm.isRefreshing.value == true) {
                             Snackbar.make(
                                 root,
                                 "Loading failed",
@@ -75,10 +79,6 @@ class PokemonActivity : ComponentActivity() {
                         loading.visibility = GONE
                         failure.visibility = GONE
                         refresh.visibility = VISIBLE
-
-                        refresh.post {
-                            refresh.isRefreshing = false
-                        }
                     }
                 }
             }
