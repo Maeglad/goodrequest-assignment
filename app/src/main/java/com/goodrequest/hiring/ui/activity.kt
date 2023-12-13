@@ -5,6 +5,7 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.*
+import androidx.recyclerview.widget.RecyclerView
 import com.goodrequest.hiring.PokemonApi
 import com.goodrequest.hiring.databinding.ActivityBinding
 import com.goodrequest.hiring.ui.UiState.*
@@ -19,11 +20,33 @@ class PokemonActivity : ComponentActivity() {
 
         ActivityBinding.inflate(layoutInflater).run {
             setContentView(root)
-            refresh.setOnRefreshListener { vm.load() }
-            retry.setOnClickListener { vm.retry() }
+            refresh.setOnRefreshListener { vm.reloadData() }
+            retry.setOnClickListener { vm.retryInitialLoad() }
 
-            val adapter = PokemonAdapter()
+            val adapter = PokemonAdapter(
+                onRetry = {
+                    vm.retryPage()
+                }
+            )
             items.adapter = adapter
+
+            vm.isPageError.observe(this@PokemonActivity) { isError ->
+                adapter.setPagingError(isError)
+            }
+
+            items.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+
+                    val isPageError = vm.isPageError.value ?: false
+
+                    if (!recyclerView.canScrollVertically(1)
+                        && !isPageError
+                    ) {
+                        vm.loadNextPage()
+                    }
+                }
+            })
 
             vm.uiState.observe(this@PokemonActivity) { uiState ->
                 when (uiState) {
