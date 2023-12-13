@@ -1,33 +1,97 @@
 package com.goodrequest.hiring.ui
 
-import android.content.Context
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.goodrequest.hiring.PokemonApi
-import kotlinx.coroutines.GlobalScope
+import com.goodrequest.hiring.ui.UiState.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.Serializable
 
 class PokemonViewModel(
     state: SavedStateHandle,
-    private val context: Context?,
-    private val api: PokemonApi) : ViewModel() {
+    private val api: PokemonApi
+) : ViewModel() {
 
-    val pokemons = state.getLiveData<Result<List<Pokemon>>?>("pokemons", null)
+    companion object {
+        private const val UI_STATE_KEY = "Ui.UiState"
+    }
+
+    private val _uiState = state.getLiveData<UiState>(
+        UI_STATE_KEY,
+        InitialState(
+            isError = false
+        )
+    )
+    val uiState: LiveData<UiState> = _uiState
+
+    init {
+        val currentValue = _uiState.value
+        if (currentValue is InitialState
+            && !currentValue.isError) {
+            load()
+        }
+    }
+
+    fun retry() {
+        _uiState.value =
+            InitialState(isError = false)
+        load()
+    }
 
     fun load() {
-        GlobalScope.launch {
-            val result = api.getPokemons(page = 1)
-            pokemons.postValue(result)
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                api.getPokemons(page = 1)
+            }
+            result.fold(
+                onSuccess = { pokemons ->
+                            _uiState.value =
+                                MainState(
+                                    pokemons = pokemons,
+                                    isError = false
+                                )
+                },
+                onFailure = {
+                    when (_uiState.value) {
+                        is InitialState ->
+                            _uiState.value = InitialState(
+                                isError = true
+                            )
+
+                        is MainState -> {
+                            val currentState = (_uiState.value as MainState)
+                            _uiState.value =
+                                MainState(
+                                    pokemons = currentState.pokemons,
+                                    isError = true
+                                )
+                        }
+
+                        null -> {
+                            // cannot happen
+                            _uiState.value = InitialState(
+                                isError = true
+                            )
+                        }
+                    }
+                })
         }
     }
 }
 
+
 data class Pokemon(
     val id     : String,
     val name   : String,
-    val detail : PokemonDetail? = null)
+    val detail : PokemonDetail? = null
+) : Serializable
 
 data class PokemonDetail(
     val image  : String,
     val move   : String,
-    val weight : Int)
+    val weight : Int
+) : Serializable

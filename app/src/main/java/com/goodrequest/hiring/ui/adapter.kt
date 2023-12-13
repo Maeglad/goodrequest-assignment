@@ -8,7 +8,7 @@ import coil.load
 import com.goodrequest.hiring.R
 import com.goodrequest.hiring.databinding.ItemBinding
 
-class PokemonAdapter: RecyclerView.Adapter<Item>() {
+class PokemonAdapter : RecyclerView.Adapter<Item>() {
     private val items = ArrayList<Pokemon>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Item =
@@ -27,7 +27,7 @@ class PokemonAdapter: RecyclerView.Adapter<Item>() {
     }
 }
 
-class Item(view: View): RecyclerView.ViewHolder(view) {
+class Item(view: View) : RecyclerView.ViewHolder(view) {
     private val ui = ItemBinding.bind(view)
 
     fun show(pokemon: Pokemon) {

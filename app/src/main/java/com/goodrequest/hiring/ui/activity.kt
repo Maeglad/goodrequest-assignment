@@ -7,33 +7,57 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.*
 import com.goodrequest.hiring.PokemonApi
 import com.goodrequest.hiring.databinding.ActivityBinding
+import com.goodrequest.hiring.ui.UiState.*
+import com.google.android.material.snackbar.Snackbar
 
-class PokemonActivity: ComponentActivity() {
+class PokemonActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val vm by viewModel { PokemonViewModel(it, null, PokemonApi) }
-        vm.load()
+        val vm by viewModel { PokemonViewModel(it, PokemonApi) }
 
         ActivityBinding.inflate(layoutInflater).run {
             setContentView(root)
             refresh.setOnRefreshListener { vm.load() }
-            retry.setOnClickListener { vm.load() }
+            retry.setOnClickListener { vm.retry() }
 
-            vm.pokemons.observe(this@PokemonActivity) { result: Result<List<Pokemon>>? ->
-                result?.fold(
-                    onSuccess = { pokemons ->
-                        loading.visibility = GONE
-                        val adapter = PokemonAdapter()
-                        items.adapter = adapter
-                        adapter.show(pokemons)
-                    },
-                    onFailure = {
-                        loading.visibility = GONE
-                        failure.visibility = VISIBLE
+            val adapter = PokemonAdapter()
+            items.adapter = adapter
+
+            vm.uiState.observe(this@PokemonActivity) { uiState ->
+                when (uiState) {
+                    is InitialState -> {
+                        if (uiState.isError) {
+                            failure.visibility = VISIBLE
+                            loading.visibility = GONE
+                            refresh.visibility = GONE
+                        } else {
+                            failure.visibility = GONE
+                            loading.visibility = VISIBLE
+                            refresh.visibility = GONE
+                        }
                     }
-                )
+
+                    is MainState -> {
+                        if (uiState.isError && refresh.isRefreshing) {
+                            Snackbar.make(
+                                root,
+                                "Loading failed",
+                                Snackbar.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        adapter.show(uiState.pokemons)
+                        loading.visibility = GONE
+                        failure.visibility = GONE
+                        refresh.visibility = VISIBLE
+
+                        refresh.post {
+                            refresh.isRefreshing = false
+                        }
+                    }
+                }
             }
         }
     }
@@ -50,7 +74,8 @@ inline fun <reified VM: ViewModel> ComponentActivity.viewModel(crossinline creat
         storeProducer = { viewModelStore },
         factoryProducer = {
             object: AbstractSavedStateViewModelFactory(this@viewModel, null) {
-                override fun <T : ViewModel> create(key: String, type: Class<T>, handle: SavedStateHandle): T =
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(key: String, modelClass: Class<T>, handle: SavedStateHandle): T =
                     create(handle) as T
             }
     })
